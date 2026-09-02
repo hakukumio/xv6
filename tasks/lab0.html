@@ -1,0 +1,2491 @@
+
+<!-- saved from url=(0052)https://pdos.csail.mit.edu/6.828/2021/labs/util.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252"><style>body {transition: opacity ease-in 0.2s; } 
+body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relative; } 
+</style>
+<title>Lab: Xv6 and Unix utilities</title>
+<link rel="stylesheet" href="./Lab_ Xv6 and Unix utilities_files/labs.css" type="text/css">
+<script src="./Lab_ Xv6 and Unix utilities_files/guidance.js.&#19979;&#36733;"></script>
+</head>
+
+<body>
+
+<h1>Lab: Xv6 and Unix utilities</h1>
+
+<p>This lab will familiarize you with xv6 and its system calls.
+
+</p><h2>Boot xv6 <script>g("easy")</script>(<a class="easy" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">easy</a>)</h2>
+
+<p>
+You can do these labs on an Athena machine or on your own computer.
+If you use your own computer, have a look at the
+<a href="https://pdos.csail.mit.edu/6.828/2021/tools.html">lab tools page</a> for setup tips.
+
+</p><p>If you use Athena, you must use an x86 machine; that is, <tt>uname -a</tt>
+should mention <tt>i386 GNU/Linux</tt> or <tt>i686 GNU/Linux</tt> or
+<tt>x86_64 GNU/Linux</tt>.
+You can log into a public Athena host with <tt>ssh -X athena.dialup.mit.edu</tt>.
+We have set up the appropriate compilers and simulators for you on
+Athena.  To use them, run <kbd>add -f 6.828</kbd>.  You must run this
+command every time you log in (or add it to your
+<tt>~/.environment</tt> file).  If you get obscure errors while
+compiling or running <tt>qemu</tt>, check that you added the
+course locker.</p>
+
+<p>Fetch the xv6 source for the lab and check out the <tt>util</tt> branch:
+</p><pre>$ <kbd>git clone git://g.csail.mit.edu/xv6-labs-2021</kbd>
+Cloning into 'xv6-labs-2021'...
+...
+$ <kbd>cd xv6-labs-2021</kbd>
+$ <kbd>git checkout util</kbd>
+Branch 'util' set up to track remote branch 'util' from 'origin'.
+Switched to a new branch 'util'
+</pre>
+
+<p>The xv6-labs-2021 repository differs slightly from the book's
+  xv6-riscv; it mostly adds some files. If you are curious look
+  at the git log:
+</p><pre>$ <kbd>git log</kbd>
+</pre>
+
+<p>The files you will need for this and subsequent lab assignments
+are distributed using
+the <a href="http://www.git-scm.com/">Git</a> version control system.
+Above you switched to a branch (<kbd>git checkout util</kbd>) 
+containing a version of xv6 tailored to this lab.
+To learn more about Git, take a look at the
+<a href="http://www.kernel.org/pub/software/scm/git/docs/user-manual.html">Git
+user's manual</a>, or, you may find this
+<a href="http://eagain.net/articles/git-for-computer-scientists/">CS-oriented
+overview of Git</a> useful.
+Git allows you to keep track of the changes you make to the code.
+For example, if you are finished with one of the exercises, and want
+to checkpoint your progress, you can <i>commit</i> your changes
+by running:
+</p>
+<pre>$ <kbd>git commit -am 'my solution for util lab exercise 1'</kbd>
+Created commit 60d2135: my solution for util lab exercise 1
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+$
+</pre>
+
+<p>
+You can keep track of your changes by using the <kbd>git diff</kbd>
+command.  Running <kbd>git diff</kbd> will display the changes to your
+code since your last commit, and <kbd>git diff
+origin/util</kbd> will display the changes relative to the
+initial xv6-labs-2021 code.  Here, <tt>origin/xv6-labs-2021</tt> is the
+name of the git branch with the initial code you downloaded for the
+class.
+</p>
+
+<p>Build and run xv6:
+</p><pre>$ <kbd>make qemu</kbd>
+riscv64-unknown-elf-gcc    -c -o kernel/entry.o kernel/entry.S
+riscv64-unknown-elf-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -DSOL_UTIL -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -I. -fno-stack-protector -fno-pie -no-pie   -c -o kernel/start.o kernel/start.c
+...  
+riscv64-unknown-elf-ld -z max-page-size=4096 -N -e main -Ttext 0 -o user/_zombie user/zombie.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+riscv64-unknown-elf-objdump -S user/_zombie &gt; user/zombie.asm
+riscv64-unknown-elf-objdump -t user/_zombie | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' &gt; user/zombie.sym
+mkfs/mkfs fs.img README  user/xargstest.sh user/_cat user/_echo user/_forktest user/_grep user/_init user/_kill user/_ln user/_ls user/_mkdir user/_rm user/_sh user/_stressfs user/_usertests user/_grind user/_wc user/_zombie 
+nmeta 46 (boot, super, log blocks 30 inode blocks 13, bitmap blocks 1) blocks 954 total 1000
+balloc: first 591 blocks have been allocated
+balloc: write bitmap block at sector 45
+qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 3 -nographic -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+xv6 kernel is booting
+
+hart 2 starting
+hart 1 starting
+init: starting sh
+$ 
+</pre>
+
+<p>
+If you type <tt>ls</tt> at the prompt, you should see output similar
+to the following:
+</p><pre>$ <kbd>ls</kbd>
+.              1 1 1024
+..             1 1 1024
+README         2 2 2059
+xargstest.sh   2 3 93
+cat            2 4 24256
+echo           2 5 23080
+forktest       2 6 13272
+grep           2 7 27560
+init           2 8 23816
+kill           2 9 23024
+ln             2 10 22880
+ls             2 11 26448
+mkdir          2 12 23176
+rm             2 13 23160
+sh             2 14 41976
+stressfs       2 15 24016
+usertests      2 16 148456
+grind          2 17 38144
+wc             2 18 25344
+zombie         2 19 22408
+console        3 20 0
+</pre>
+These are the files that <tt>mkfs</tt> includes in the
+initial file system; most are programs you can run.  You just ran one of them: <tt>ls</tt>.
+
+<p>xv6 has no <tt>ps</tt> command, but, if you type <kbd>Ctrl-p</kbd>,
+the kernel will print information about each process.
+If you try it now, you'll see two lines: one for <tt>init</tt>,
+and one for <tt>sh</tt>.
+      
+</p><p>To quit qemu type: <kbd>Ctrl-a x<kbd>.
+
+</kbd></kbd></p><h2>Grading and hand-in procedure</h2>
+
+<p>
+You can run <kbd>make grade</kbd>
+to test your solutions with the grading program. The TAs will use the same
+grading program to assign your lab submission a
+grade. Separately, we will also have check-off meetings for labs (see
+<a href="https://pdos.csail.mit.edu/6.828/2021/general.html#grading">Grading policy</a>).
+</p>
+	
+<p>The lab code comes with GNU Make rules to make submission easier. After
+committing your final changes to the lab, type <kbd>make handin</kbd> to submit
+  your lab.  For detailed instructions on how to submit see <a href="https://pdos.csail.mit.edu/6.828/2021/labs/util.html#submit">below</a>.
+
+</p><h2>sleep <script>g("easy")</script>(<a class="easy" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">easy</a>)</h2>
+
+<div class="required">
+<p>Implement the UNIX program <tt>sleep</tt> for xv6; your <tt>sleep</tt> should pause
+  for a user-specified number of ticks.  A tick is a notion of time
+  defined by the xv6 kernel, namely the time between two interrupts
+  from the timer chip.  Your solution should be in the file
+  <tt>user/sleep.c</tt>.
+</p></div>
+
+<p>
+
+</p><p>Some hints:
+  </p><ul>
+
+    <li>Before you start coding, read Chapter 1 of
+    the <a href="https://pdos.csail.mit.edu/6.828/2021/xv6/book-riscv-rev2.pdf">xv6 book</a>.
+
+    </li><li>Look at some of the other programs in <tt>user/</tt>
+    (e.g., <tt>user/echo.c</tt>, <tt>user/grep.c</tt>,
+    and <tt>user/rm.c</tt>)
+    to see
+    how you can obtain the command-line arguments passed to a program.
+
+    </li><li>If the user
+    forgets to pass an argument, sleep should print an error message.
+
+    </li><li>The command-line argument is passed as a string; you can convert it to an
+      integer using <tt>atoi</tt> (see user/ulib.c).
+
+    </li><li>Use the system call <tt>sleep</tt>.
+
+    </li><li>See <tt>kernel/sysproc.c</tt> for
+    the xv6 kernel code that implements the <tt>sleep</tt> system
+    call (look for <tt>sys_sleep</tt>), <tt>user/user.h</tt>
+    for the C definition of <tt>sleep</tt> callable from a
+    user program, and <tt>user/usys.S</tt> for the assembler
+    code that jumps from user code into the kernel for <tt>sleep</tt>.
+
+    </li><li>Make sure <tt>main</tt> calls <tt>exit()</tt> in order to exit
+    your program.
+
+    </li><li>Add your <tt>sleep</tt> program to <tt>UPROGS</tt> in Makefile; once you've
+    done that, <tt>make qemu</tt> will compile your program and you'll
+    be able to run it from the xv6 shell.
+
+    </li><li>Look at Kernighan and Ritchie's book <i>The C programming language
+        (second edition)</i> (K&amp;R) to learn about C.
+
+  </li></ul>
+
+  <p>Run the program from the xv6 shell:
+    </p><pre>      $ <kbd>make qemu</kbd>
+      ...
+      init: starting sh
+      $ <kbd>sleep 10</kbd>
+      (nothing happens for a little while)
+      $
+    </pre>
+  <p>Your solution is correct if your program pauses when
+  run as shown above.
+  Run <kbd>make grade</kbd> to see if you indeed pass the
+    sleep tests.
+
+ </p><p>Note that <kbd>make grade</kbd> runs all tests, including the ones for the assignments
+ below. If you want to run the grade tests for one assignment, type:
+   </p><pre>     $ <kbd>./grade-lab-util sleep</kbd>
+   </pre>
+   This will run the grade tests that match "sleep".  Or, you can type:
+   <pre>     $ <kbd>make GRADEFLAGS=sleep grade</kbd>
+   </pre>
+   which does the same.
+   
+   
+<h2>pingpong <script>g("easy")</script>(<a class="easy" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">easy</a>)</h2>
+
+<div class="required">
+<p> Write a program that uses UNIX system calls to ''ping-pong'' a
+  byte between two processes over a pair of pipes, one for each
+  direction.
+  The parent should send a byte to the child;
+  the child should print "&lt;pid&gt;: received ping",
+  where &lt;pid&gt; is its process ID,
+  write the byte on the pipe to the parent,
+  and exit;
+  the parent should read the byte from the child,
+  print "&lt;pid&gt;: received pong",
+  and exit.
+  Your
+  solution should be in the file <tt>user/pingpong.c</tt>.
+</p></div>
+
+<p>Some hints:
+  </p><ul>
+    <li>Use <tt>pipe</tt> to create a pipe.
+    </li><li>Use <tt>fork</tt> to create a child.
+    </li><li>Use <tt>read</tt> to read from the pipe, and <tt>write</tt> to write to the pipe.
+    </li><li>Use <tt>getpid</tt> to find the process ID of the calling process.
+    </li><li>Add the program to <tt>UPROGS</tt> in Makefile.
+    </li><li>User programs on xv6 have a limited set of library
+    functions available to them. You can see the list in
+    <tt>user/user.h</tt>; the source (other than for system calls)
+    is in <tt>user/ulib.c</tt>, <tt>user/printf.c</tt>,
+    and <tt>user/umalloc.c</tt>.
+  </li></ul>
+
+  <p>Run the program from the xv6 shell and it should produce the
+  following output:
+  </p><pre>    $ <kbd>make qemu</kbd>
+    ...
+    init: starting sh
+    $ <kbd>pingpong</kbd>
+    4: received ping
+    3: received pong
+    $
+  </pre>
+    <p>Your solution is correct if your program exchanges a byte
+    between two processes and produces output as shown above.
+
+  
+</p><h2>primes <script>g("moderate")</script>(<a class="moderate" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">moderate</a>)/<script>g("hard")</script>(<a class="hard" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">hard</a>)</h2>
+
+<div class="required">
+  <p>Write a concurrent version of prime sieve using pipes.  This idea
+    is due to Doug McIlroy, inventor of Unix pipes.  The picture
+    halfway down <a href="http://swtch.com/~rsc/thread/">this page</a>
+    and the surrounding text explain how to do it.  Your
+    solution should be in the file <tt>user/primes.c</tt>.
+</p></div>
+
+    <p>Your goal is to use <tt>pipe</tt> and <tt>fork</tt> to set up
+    the pipeline. The first process feeds the numbers 2 through 35
+    into the pipeline.  For each prime number, you will arrange to
+    create one process that reads from its left neighbor over a pipe
+    and writes to its right neighbor over another pipe. Since xv6 has
+    limited number of file descriptors and processes, the first
+    process can stop at 35.
+    
+</p><p>Some hints:
+  </p><ul>
+    <li>Be careful to close file descriptors that a process doesn't
+    need, because otherwise your program will run xv6 out of resources
+    before the first process reaches 35.
+      
+    </li><li>Once the first process reaches 35, it should wait until the
+    entire pipeline terminates, including all children, grandchildren,
+    &amp;c. Thus the main primes process should only exit after all the
+    output has been printed, and after all the other primes processes
+    have exited.
+
+    </li><li>Hint: <tt>read</tt> returns zero when the write-side of
+    a pipe is closed.
+
+    </li><li>It's simplest to directly write 32-bit (4-byte) <tt>int</tt>s to the
+        pipes, rather than using formatted ASCII I/O.
+
+    </li><li>You should create the processes in the pipeline only as they are
+      needed.
+
+    </li><li>Add the program to <tt>UPROGS</tt> in Makefile.
+
+  </li></ul>
+
+<p>Your solution is correct if it implements a pipe-based
+sieve and produces the following output:
+  </p><pre>    $ <kbd>make qemu</kbd>
+    ...
+    init: starting sh
+    $ <kbd>primes</kbd>
+    prime 2
+    prime 3
+    prime 5
+    prime 7
+    prime 11
+    prime 13
+    prime 17
+    prime 19
+    prime 23
+    prime 29
+    prime 31
+    $
+  </pre>
+  
+<h2>find <script>g("moderate")</script>(<a class="moderate" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">moderate</a>)</h2>
+
+<div class="required">
+<p>Write a simple version of the UNIX find program: find all the files
+  in a directory tree with a specific name.  Your solution
+  should be in the file <tt>user/find.c</tt>.
+  
+</p></div>
+  
+<p>Some hints:
+  </p><ul>
+    <li>Look at user/ls.c to see how to read directories.
+    </li><li>Use recursion to allow find to descend into sub-directories.
+    </li><li>Don't recurse into "." and "..".
+    </li><li>Changes to the file system persist across runs of qemu; to get
+    a clean file system run <kbd>make clean</kbd> and then <kbd>make qemu</kbd>.
+    </li><li>You'll need to use C strings. Have a look at K&amp;R (the C book),
+      for example Section 5.5.
+    </li><li> Note that == does not compare strings like in Python. Use strcmp() instead.
+    </li><li>Add the program to <tt>UPROGS</tt> in Makefile.
+  </li></ul>
+
+<p>Your solution is correct if produces the following output (when the
+  file system contains the files <tt>b</tt> and <tt>a/b</tt>):
+  </p><pre>    $ <kbd>make qemu</kbd>
+    ...
+    init: starting sh
+    $ <kbd>echo &gt; b</kbd>
+    $ <kbd>mkdir a</kbd>
+    $ <kbd>echo &gt; a/b</kbd>
+    $ <kbd>find . b</kbd>
+    ./b
+    ./a/b
+    $ 
+  </pre>
+
+<h2>xargs <script>g("moderate")</script>(<a class="moderate" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">moderate</a>)</h2>
+
+<div class="required">
+<p>Write a simple version of the UNIX xargs program: read lines from
+  the standard input and run a command for each line, supplying the line as
+  arguments to the command.   Your solution
+  should be in the file <tt>user/xargs.c</tt>.
+</p></div>
+
+  The following example illustrates xarg's
+  behavior:
+  <pre>    $ <kbd>echo hello too | xargs echo bye</kbd>
+    bye hello too
+    $
+  </pre>
+  Note that the command here is "echo bye" and the additional
+  arguments are "hello too", making the command "echo bye hello too",
+  which outputs "bye hello too".
+
+  <p> Please note that xargs on UNIX makes an optimization where it will feed more than argument to the command at a time. We don't expect you to make this optimization. To make xargs on UNIX behave the way we want it to for this lab, please run it with the -n option set to 1. For instance</p>
+  <pre>    $ <kbd>echo "1\n2" | xargs -n 1 echo line</kbd>
+    line 1
+    line 2
+    $
+  </pre>  
+  
+<p>Some hints:
+  </p><ul>
+    <li>Use <tt>fork</tt> and <tt>exec</tt> to invoke the
+      command on each line of input.  Use <tt>wait</tt> in the parent
+      to wait for the child to complete the command.
+    </li><li>To read individual lines of input, read a character at a time
+        until a newline ('\n') appears.
+    </li><li>kernel/param.h declares MAXARG, which may be useful if you need
+      to declare an argv array.
+    </li><li>Add the program to <tt>UPROGS</tt> in Makefile.
+    </li><li>Changes to the file system persist across runs of qemu; to get
+    a clean file system run <kdb>make clean</kdb> and then <kdb>make qemu</kdb>.
+  </li></ul>
+
+<p>xargs, find, and grep combine well:
+  </p><pre>  $ <kbd>find . b | xargs grep hello</kbd>
+  </pre>
+  will run "grep hello" on each file named b in the directories below
+  ".".
+
+<p>To test your solution for xargs, run the shell script xargstest.sh.
+Your solution is correct if it produces the following output:
+  </p><pre>  $ <kbd>make qemu</kbd>
+  ...
+  init: starting sh
+  $ <kbd>sh &lt; xargstest.sh</kbd>
+  $ $ $ $ $ $ hello
+  hello
+  hello
+  $ $   
+  </pre>
+You may have to go back and fix bugs in your find program.  The output has
+many <tt>$</tt> because the xv6 shell doesn't realize
+it is processing commands from a file instead of from the console, and
+prints a <tt>$</tt> for each command in the file.
+
+<p><a name="submit">
+</a></p><h2><a name="submit">Submit the lab</a></h2><a name="submit">
+
+<p><b>This completes the lab.</b> Make sure you pass all of the make
+grade tests. If this lab had questions, don't forget to write up your
+answers to the questions in answers-<i>lab-name</i>.txt. Commit your changes
+(including adding answers-<i>lab-name</i>.txt) and type make handin in the lab
+  directory to hand in your lab.
+
+</p><h3>Time spent</h3>
+
+<p>Create a new file, <tt>time.txt</tt>, and put in it a single integer, the
+number of hours you spent on the lab. Don't forget to <tt>git add</tt> and
+<tt>git commit</tt> the file.
+
+</p><h3>Submit</h3>
+
+You will turn in your assignments using
+the </a><a href="https://6828.scripts.mit.edu/2021/handin.py/">submission
+website</a>.  You need to request once an API key from the submission
+website before you can turn in any assignments or labs.
+<p></p>
+
+<p>After committing your final changes to the lab, type <kbd>make
+handin</kbd> to submit your lab.
+</p><pre>$ <kbd>git commit -am "ready to submit my lab"</kbd>
+[util c2e3c8b] ready to submit my lab
+ 2 files changed, 18 insertions(+), 2 deletions(-)
+
+$ <kbd>make handin</kbd>
+tar: Removing leading `/' from member names
+Get an API key for yourself by visiting https://6828.scripts.mit.edu/2021/handin.py/
+Please enter your API key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 79258  100   239  100 79019    853   275k --:--:-- --:--:-- --:--:--  276k
+$
+</pre>
+<kbd>make handin</kbd> will store your API key in <i>myapi.key</i>. If you need
+to change your API key, just remove this file and let <kbd>make handin</kbd>
+generate it again (<i>myapi.key</i> must not include newline characters).
+<p></p>
+
+<p>
+If you run <kbd>make handin</kbd> and you have either uncomitted changes or
+untracked files, you will see output similar to the following:
+</p><pre> M hello.c
+?? bar.c
+?? foo.pyc
+Untracked files will not be handed in.  Continue? [y/N]
+</pre>
+Inspect the above lines and make sure all files that your lab solution needs
+are tracked i.e. not listed in a line that begins with <kbd>??</kbd>.
+You can cause <tt>git</tt> to track a new file that you create using
+<tt>git add filename</tt>.
+<p></p>
+
+<p>
+If <kbd>make handin</kbd> does not work properly, 
+try fixing the problem with the curl or Git commands.
+Or you can run <kbd>make tarball</kbd>.
+This will make a tar file for you, which you can
+then upload via our 
+<a href="https://6828.scripts.mit.edu/2021/handin.py/">web interface</a>.
+</p>
+
+<p>
+</p><div class="warning">
+<ul>
+  <li>Please run `make grade` to ensure that your code passes all of the tests</li>
+  <li>Commit any modified source code before running `make handin`</li>
+  <li>You can inspect the status of your submission and download the submitted
+code at <a href="https://6828.scripts.mit.edu/2021/handin.py/">https://6828.scripts.mit.edu/2021/handin.py/</a> </li>
+</ul>
+</div>
+
+
+
+  
+<h2>Optional challenge exercises</h2>
+
+<ul>
+    
+  <li><p>Write an uptime program that prints the uptime in terms of
+      ticks using the <tt>uptime</tt> system call. <script>g("easy")</script>(<a class="easy" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">easy</a>)
+      </p></li>
+
+  <li><p>Support regular expressions in name matching
+  for <tt>find</tt>.  <tt>grep.c</tt> has some primitive support for
+  regular expressions.  <script>g("easy")</script>(<a class="easy" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">easy</a>)
+      </p></li>
+
+  <li><p>The xv6 shell (<tt>user/sh.c</tt>) is just another user
+      program and you can improve it. It is a minimal shell and lacks
+      many features found in real shell. For example, modify the shell
+      to not print a <tt>$</tt> when processing shell commands from a
+      file <script>g("moderate")</script>(<a class="moderate" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">moderate</a>), modify the shell to
+      support wait <script>g("easy")</script>(<a class="easy" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">easy</a>), modify the shell to
+      support lists of commands, separated by ";"
+      <script>g("moderate")</script>(<a class="moderate" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">moderate</a>), modify the shell to support
+      sub-shells by implementing "(" and ")"
+      <script>g("moderate")</script>(<a class="moderate" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">moderate</a>), modify the shell to support
+      tab completion <script>g("easy")</script>(<a class="easy" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">easy</a>), modify the shell to
+      keep a history of passed shell commands
+      <script>g("moderate")</script>(<a class="moderate" href="https://pdos.csail.mit.edu/6.828/2021/labs/guidance.html">moderate</a>), or anything else you would
+      like your shell to do. (If you are very ambitious, you may have
+      to modify the kernel to support the kernel features you need;
+      xv6 doesn't support much.)
+
+</p></li></ul>
+
+
+
+
+
+<yd-mg-icon id="yd-mg-icon-host" style="position: fixed; z-index: 2147483647;"><template shadowrootmode="open"><style>
+.item {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.tooltip-container {
+    position: relative;
+}
+.tooltip {
+    display: none;
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%);
+    z-index: 1;
+    box-sizing: border-box;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.82);
+    color: #fff;
+    font-family: Arial, "Microsoft YaHei", sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+.tooltip-container:hover .tooltip {
+    display: block;
+}
+.all {
+    direction: ltr;
+}
+.all > * {
+    direction: rtl;
+}
+.hidden {
+    display: none;
+    transition: width 0.3s linear;
+}
+.container:hover .hidden {
+    width: var(--53a4b41a);
+    height: var(--548fc2cc);
+    display: flex;
+}
+.container {
+    position: fixed;
+    top:var(--76d80aba);
+    right:var(--213e402c);
+    width: var(--1b0fa05f);
+    height: var(--2d1571ae);
+    background-color: #fff;
+    border-radius: var(--bf684c0a);
+    box-shadow: 0 0 10px #b3b5b8;
+    transition: width 0.3s linear;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.container:hover {
+    width: var(--7c897ea1);
+    border-radius: var(--bf684c0a);
+    justify-content: space-around;
+}
+.icon {
+    width: var(--53a4b41a);
+    height: var(--548fc2cc);
+    cursor: pointer;
+    user-select: none;
+}
+.icon:hover {
+}
+.yd-translate-loader {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    height: var(--548fc2cc);
+    width:  var(--53a4b41a);
+    animation: spin 0.5s linear infinite;
+}
+@keyframes spin {
+0% { transform: rotate(0deg);
+}
+100% { transform: rotate(360deg);
+}
+}
+@keyframes append-animate {
+from {
+        opacity: 0;
+}
+to {
+        opacity: 1;
+}
+}
+.popup {
+  animation: popup 0.3s forwards;
+}
+.language-prompt {
+    position: fixed;
+    z-index: 2147483647;
+    display: flex;
+    align-items: center;
+    min-width: 148px;
+    max-width: 196px;
+    height: 36px;
+    box-sizing: border-box;
+    padding: 4px;
+    border: 1px solid rgba(238, 239, 240, 0.96);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(42, 43, 46, 0.16);
+    color: #2A2B2E;
+    font-family: Arial, "Microsoft YaHei", sans-serif;
+    font-size: 13px;
+    line-height: 18px;
+    direction: ltr;
+}
+.prompt-target,
+.prompt-undo,
+.prompt-language-item {
+    border: none;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+.prompt-target {
+    min-width: 0;
+    height: 28px;
+    padding: 0 6px 0 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 14px;
+}
+.prompt-target:hover,
+.prompt-undo:hover {
+    background: #F5F6F7;
+}
+.prompt-target strong {
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #2A2B2E;
+    font-weight: 600;
+}
+.prompt-caret {
+    color: #8A9099;
+    font-size: 12px;
+}
+.prompt-undo {
+    height: 28px;
+    padding: 0 8px;
+    border-left: 1px solid #EEEFF0;
+    border-radius: 0 14px 14px 0;
+    color: #5F6368;
+}
+.prompt-language-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 244px;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 1px solid #EEEFF0;
+    border-radius: 12px;
+    background: #FFFFFF;
+    box-shadow: 0 12px 32px rgba(42, 43, 46, 0.18);
+}
+.language-prompt.above .prompt-language-panel {
+    top: auto;
+    bottom: calc(100% + 8px);
+}
+.prompt-language-search {
+    width: 100%;
+    height: 34px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border: 1px solid #EEEFF0;
+    border-radius: 8px;
+    outline: none;
+    color: #2A2B2E;
+    font-size: 13px;
+}
+.prompt-language-search:focus {
+    border-color: #F04438;
+}
+.prompt-language-list {
+    max-height: 220px;
+    margin-top: 8px;
+    overflow-y: auto;
+}
+.prompt-language-item {
+    width: 100%;
+    min-height: 34px;
+    padding: 7px 10px;
+    box-sizing: border-box;
+    border-radius: 8px;
+    text-align: left;
+    color: #2A2B2E;
+}
+.prompt-language-item:hover {
+    background: #F5F6F7;
+}
+.prompt-language-item.selected {
+    background: rgba(240, 68, 56, 0.08);
+    color: #F04438;
+    font-weight: 600;
+}
+@keyframes popup {
+0% {
+    opacity: 0;
+    transform: scale(0);
+}
+100% {
+    opacity: 1;
+    transform: scale(1);
+}
+}
+</style><div class="all" id="yd-mg-icon-host" style="position: fixed; z-index: 2147483647; --53a4b41a: 22px; --548fc2cc: 22px; --76d80aba: 0px; --213e402c: 0px; --1b0fa05f: 26px; --2d1571ae: 26px; --bf684c0a: 13px; --7c897ea1: 78px;"><!----><!----></div></template></yd-mg-icon><yd-mg-block-icon id="yd-mg-block-icon-host" class="notranslate" translate="no"><template shadowrootmode="open"><style>@charset "UTF-8";
+.disabled-element[data-v-5fcc2f70] {
+  cursor: not-allowed;
+}
+.all[data-v-5fcc2f70] {
+  position: var(--141c46df);
+  z-index: 2147483647;
+  width: var(--2ce6b8d4);
+  height: var(--562167d9);
+}
+.all .container[data-v-5fcc2f70] {
+  position: relative;
+  width: var(--2ce6b8d4);
+  height: var(--562167d9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.all .container .yd-line[data-v-5fcc2f70] {
+  display: block;
+  position: absolute;
+  height: var(--6f4686cc);
+  top: var(--6a719460);
+  left: var(--e3c88a28);
+}
+.all .container .yd-line .orignal[data-v-5fcc2f70] {
+  padding: 1px;
+  background-color: #E4E7F3;
+  height: var(--1e85fd5e);
+}
+.all .container .yd-line .yd[data-v-5fcc2f70] {
+  padding: 1px;
+  background-color: #FF939E;
+  height: var(--66fd0c57);
+}
+.all .container .yd-line .llm[data-v-5fcc2f70] {
+  padding: 1px;
+  background-color: #2485FF;
+  height: var(--3d9a7a8f);
+}
+.all .container .tooltip-container[data-v-5fcc2f70] {
+  display: inline-block;
+  position: absolute;
+  top: var(--06e4222a);
+  left: var(--d5a7b59e);
+  z-index: 2147483647;
+}
+.all .container .tooltip-container .icon[data-v-5fcc2f70] {
+  width: var(--2ce6b8d4);
+  height: var(--562167d9);
+  background-image: var(--4140fb2d);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.all .container .tooltip-container .icon[data-v-5fcc2f70]::before {
+  content: var(--2818d20f);
+  display: none;
+}
+.all .container .tooltip-container .icon[data-v-5fcc2f70]:hover {
+  box-shadow: 0px 4px 10px rgba(56, 112, 200, 0.16);
+  transition: width 0.3s linear;
+  background-image: var(--2818d20f);
+  cursor: pointer;
+}
+.all .container .tooltip-container .llmIcon[data-v-5fcc2f70] {
+  width: var(--2ce6b8d4);
+  height: var(--562167d9);
+  background-image: var(--4140fb2d);
+  border-radius: 5px;
+}
+.all .container .tooltip-container .llmIcon[data-v-5fcc2f70]:hover {
+  width: var(--2ce6b8d4);
+  height: 48px;
+  background-image: var(--56d069d2);
+  border-radius: 5px;
+}
+.all .container .tooltip-container .tooltip[data-v-5fcc2f70] {
+  position: absolute;
+  top: var(--21997b89);
+  /* &#25918;&#22312;&#20803;&#32032;&#30340;&#19978;&#26041; */
+  left: var(--11922c53);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: #F9FBFF;
+  padding: 8px;
+  width: 150px;
+  height: 40px;
+  border-radius: 8px;
+  box-sizing: border-box;
+  border: 1px solid rgba(216, 217, 219, 0.5);
+  box-shadow: 0px 1.2px 3.6px 0px rgba(0, 0, 0, 0.1), 0px 2px 20px 0px rgba(27, 19, 98, 0.08);
+  font-family: PingFang SC;
+  font-size: 16px;
+  font-weight: normal;
+  line-height: 150%;
+  text-align: center;
+  letter-spacing: 0em;
+  user-select: none;
+  color: #2A2B2E;
+}
+.all .container .tooltip-container .llmTooltip[data-v-5fcc2f70] {
+  position: absolute;
+  top: var(--21997b89);
+  /* &#25918;&#22312;&#20803;&#32032;&#30340;&#19978;&#26041; */
+  left: var(--11922c53);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: #F9FBFF;
+  padding: 8px;
+  width: 200px;
+  height: 40px;
+  border-radius: 8px;
+  box-sizing: border-box;
+  border: 1px solid rgba(216, 217, 219, 0.5);
+  box-shadow: 0px 1.2px 3.6px 0px rgba(0, 0, 0, 0.1), 0px 2px 20px 0px rgba(27, 19, 98, 0.08);
+  font-family: PingFang SC;
+  font-size: 16px;
+  font-weight: normal;
+  line-height: 150%;
+  text-align: center;
+  letter-spacing: 0em;
+  user-select: none;
+  color: #2A2B2E;
+}
+.all .container .yd-translate-loader-block[data-v-5fcc2f70] {
+  position: absolute;
+  top: var(--06e4222a);
+  left: var(--d5a7b59e);
+  width: var(--2ce6b8d4);
+  height: var(--2ce6b8d4);
+  background-image: var(--579d014f);
+  /* &#30830;&#20445;&#36825;&#37324;&#26159;&#27491;&#30830;&#30340;&#22270;&#29255;&#36335;&#24452; */
+  background-repeat: no-repeat;
+  background-size: cover;
+  box-shadow: 0px 4px 10px rgba(56, 112, 200, 0.16);
+  overflow: hidden;
+  /* &#20445;&#25345;&#23376;&#20803;&#32032;&#30340;&#22278;&#35282;&#25928;&#26524; */
+}
+.all .container .yd-translate-loader-block[data-v-5fcc2f70]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: linear-gradient(to left bottom, rgba(38, 132, 255, 0.6), rgba(120, 85, 250, 0.6));
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.all .container .tip[data-v-5fcc2f70] {
+  background-color: #F9FBFF;
+  padding: 8px;
+  border-radius: 8px;
+  height: 400px;
+  border: 1px solid #D8D9DB;
+}</style><!----></template></yd-mg-block-icon><yd-image-ocr id="yd-image-ocr-host" style="z-index: 2147483647;"><template shadowrootmode="open"><style>.modal-overlay[data-v-c6379e23] {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+  color: #1f2329;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.modal-content[data-v-c6379e23] {
+  position: relative;
+  width: min(820px, 100vw - 48px);
+  height: min(560px, 100vh - 48px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #f5f6f8;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.32);
+}
+.modal-header[data-v-c6379e23] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 52px;
+  min-height: 52px;
+  padding: 0 16px 0 20px;
+}
+.header-title[data-v-c6379e23] {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.brand-dot[data-v-c6379e23] {
+  width: 22px;
+  height: 22px;
+  display: block;
+  border-radius: 50%;
+  object-fit: contain;
+}
+.brand-dot.small[data-v-c6379e23] {
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+}
+.title[data-v-c6379e23] {
+  color: #15171a;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 22px;
+}
+.icon-button[data-v-c6379e23] {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #8d929a;
+  cursor: pointer;
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background-color 0.16s ease;
+}
+.icon-button[data-v-c6379e23]:hover {
+  background: #e8ebf0;
+}
+.icon-button img[data-v-c6379e23] {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+.state-panel[data-v-c6379e23] {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px;
+  text-align: center;
+}
+.state-title[data-v-c6379e23] {
+  font-size: 18px;
+  font-weight: 650;
+}
+.state-desc[data-v-c6379e23] {
+  max-width: 360px;
+  color: #606873;
+  font-size: 14px;
+  line-height: 22px;
+}
+.state-actions[data-v-c6379e23] {
+  display: flex;
+  gap: 10px;
+}
+.primary-button[data-v-c6379e23],
+.secondary-button[data-v-c6379e23],
+.tool-button[data-v-c6379e23] {
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 13px;
+}
+.primary-button[data-v-c6379e23] {
+  background: #e5483f;
+  color: #fff;
+}
+.secondary-button[data-v-c6379e23],
+.tool-button[data-v-c6379e23] {
+  background: #fff;
+  color: #323842;
+  border-color: #d9dde3;
+}
+.loader[data-v-c6379e23] {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #e6e8ec;
+  border-top-color: #e5483f;
+  border-radius: 50%;
+  animation: spin-c6379e23 0.9s linear infinite;
+}
+.modal-body[data-v-c6379e23] {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) 318px;
+  gap: 16px;
+  padding: 0 16px 16px;
+  box-sizing: border-box;
+  background: #f5f6f8;
+}
+.modal-footer[data-v-c6379e23] {
+  flex: 0 0 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 12px 12px 28px;
+  background: #fff;
+}
+.footer-brand[data-v-c6379e23] {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #1d2129;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.brand-logo[data-v-c6379e23] {
+  width: auto;
+  height: 20px;
+  display: block;
+  object-fit: contain;
+}
+.quota-text[data-v-c6379e23] {
+  background: linear-gradient(137.29deg, #04CAF7 6.83%, #1972FC 51.68%, #3B88FF 93.56%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  font-size: 12px;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.download-app-button[data-v-c6379e23] {
+  height: 30px;
+  margin-left: 4px;
+  padding: 0 14px;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  background: #fff;
+  color: #30343b;
+  cursor: pointer;
+  font-size: 13px;
+}
+.download-app-button[data-v-c6379e23]:hover {
+  background: #f7f8fa;
+}
+.export-area[data-v-c6379e23] {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.export-picker[data-v-c6379e23] {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 104px;
+  height: 32px;
+  box-sizing: border-box;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  background: #fff;
+}
+.export-select[data-v-c6379e23] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0 30px 0 14px;
+  background: transparent;
+  color: #30343b;
+  cursor: pointer;
+  font-size: 13px;
+  outline: none;
+  text-align: left;
+}
+.export-chevron[data-v-c6379e23] {
+  position: absolute;
+  right: 12px;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+.export-menu[data-v-c6379e23] {
+  position: absolute;
+  right: 0;
+  bottom: 36px;
+  z-index: 20;
+  width: 104px;
+  padding: 4px;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(18, 24, 40, 0.14);
+}
+.export-menu button[data-v-c6379e23] {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: transparent;
+  color: #30343b;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+}
+.export-menu button + button[data-v-c6379e23] {
+  margin-top: 4px;
+}
+.export-menu button[data-v-c6379e23]:hover,
+.export-menu button.active[data-v-c6379e23] {
+  background: #f3f7ff;
+  color: #1a75ff;
+}
+.export-button[data-v-c6379e23] {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 6px;
+  background: #14171c;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+.export-button[data-v-c6379e23]:hover {
+  background: #2a2e35;
+}
+.export-button img[data-v-c6379e23] {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+.image-panel[data-v-c6379e23] {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #dfe4ee;
+  border-radius: 6px;
+}
+.segmented[data-v-c6379e23] {
+  display: flex;
+  align-self: center;
+  margin: 8px 0 16px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #fff;
+  border: 0.5px solid #E4E7F3;
+  box-shadow: 0 2px 6px rgba(26, 31, 38, 0.04);
+}
+.segmented button[data-v-c6379e23] {
+  height: 28px;
+  min-width: 66px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #626469;
+  cursor: pointer;
+  font-size: 13px;
+}
+.segmented button.active[data-v-c6379e23] {
+  background: #f2f3f5;
+  color: #1f2329;
+  box-shadow: none;
+  font-weight: 500;
+}
+.image-frame[data-v-c6379e23] {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 22px 24px;
+}
+.image-frame img[data-v-c6379e23] {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.result-panel[data-v-c6379e23] {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 14px 12px 12px;
+  background: #fff;
+  border: 0;
+  border-radius: 6px;
+}
+.language-row[data-v-c6379e23] {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 28px;
+  margin-bottom: 14px;
+}
+.language-picker[data-v-c6379e23] {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 28px;
+  max-width: 96px;
+  padding: 0 18px 0 0;
+  border: 0;
+  background: transparent;
+  color: #515761;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.language-picker span[data-v-c6379e23] {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.language-picker.active[data-v-c6379e23] {
+  color: #1f2329;
+}
+.chevron-icon[data-v-c6379e23] {
+  position: absolute;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+.language-popup[data-v-c6379e23] {
+  position: absolute;
+  top: 36px;
+  left: -4px;
+  z-index: 5;
+  width: 312px;
+  max-height: 386px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid #e4e7f3;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(17, 24, 39, 0.16);
+}
+.language-popup-section[data-v-c6379e23] {
+  padding: 12px 12px 10px;
+}
+.language-popup-section.specify[data-v-c6379e23] {
+  position: relative;
+  padding: 10px 18px 10px 12px;
+}
+.language-popup-title[data-v-c6379e23],
+.language-group-title[data-v-c6379e23] {
+  color: #8f959e;
+  font-size: 12px;
+  line-height: 16px;
+}
+.language-popup-title[data-v-c6379e23] {
+  margin: 0 0 6px;
+}
+.language-popup-divider[data-v-c6379e23] {
+  height: 1px;
+  margin: 0 12px;
+  background: #eef0f5;
+}
+.language-grid[data-v-c6379e23] {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px 6px;
+}
+.language-option[data-v-c6379e23] {
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #25282f;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 28px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.language-option[data-v-c6379e23]:hover {
+  background: #f5f6fa;
+}
+.language-option.active[data-v-c6379e23] {
+  color: #ff3650;
+  background: #f3f4f6;
+}
+.language-scroll-area[data-v-c6379e23] {
+  height: 230px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+.language-scroll-area[data-v-c6379e23]::-webkit-scrollbar {
+  width: 3px;
+  background: transparent;
+}
+.language-scroll-area[data-v-c6379e23]::-webkit-scrollbar-thumb {
+  border-radius: 7px;
+  background: #d8dbe0;
+}
+.language-group-title[data-v-c6379e23] {
+  margin: 6px 0 4px;
+}
+.language-group-title[data-v-c6379e23]:first-child {
+  margin-top: 0;
+}
+.language-alphabet-index[data-v-c6379e23] {
+  position: absolute;
+  top: 10px;
+  right: 4px;
+  bottom: 10px;
+  width: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  overflow: visible;
+}
+.alphabet-option[data-v-c6379e23] {
+  width: 14px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #9aa0a6;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 10px;
+}
+.alphabet-option.active[data-v-c6379e23],
+.alphabet-option[data-v-c6379e23]:hover {
+  color: #e5483f;
+}
+.swap-button[data-v-c6379e23] {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #9aa0a6;
+  cursor: pointer;
+}
+.swap-button[data-v-c6379e23]:hover {
+  color: #626469;
+}
+.swap-button img[data-v-c6379e23] {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+.text-groups[data-v-c6379e23] {
+  flex: none;
+  height: calc(100% - 42px);
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.text-block[data-v-c6379e23] {
+  flex: none;
+  height: calc((100% - 18px) / 2);
+  box-sizing: border-box;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.text-block.has-divider[data-v-c6379e23] {
+  border-bottom: 1px solid #e6e7e8;
+  padding-bottom: 16px;
+}
+.text-header[data-v-c6379e23] {
+  flex: 0 0 24px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  color: #111418;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 24px;
+}
+.text-list[data-v-c6379e23] {
+  flex: 1 1 0;
+  height: auto;
+  box-sizing: border-box;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-color: rgba(112, 118, 128, 0.42) transparent;
+  scrollbar-width: thin;
+  padding: 0 8px 0 0;
+  background: transparent;
+  color: #2f3542;
+  line-height: 1.55;
+  font-size: 12px;
+}
+.text-list p[data-v-c6379e23] {
+  margin: 0 0 6px;
+  word-break: break-word;
+}
+.text-list p[data-v-c6379e23]:last-child {
+  margin-bottom: 0;
+}
+.text-list[data-v-c6379e23]::-webkit-scrollbar {
+  width: 4px;
+  background: transparent;
+}
+.text-list[data-v-c6379e23]::-webkit-scrollbar-track {
+  background: transparent;
+}
+.text-list[data-v-c6379e23]::-webkit-scrollbar-thumb {
+  border-radius: 7px;
+  background: rgba(112, 118, 128, 0.42);
+}
+.text-list[data-v-c6379e23]::-webkit-scrollbar-button,
+.text-list[data-v-c6379e23]::-webkit-scrollbar-corner {
+  display: none;
+}
+.tool-area[data-v-c6379e23] {
+  flex: 0 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-top: 6px;
+}
+.tool-button[data-v-c6379e23] {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #939599;
+  cursor: pointer;
+}
+.tool-button[data-v-c6379e23]:hover {
+  background: #f0f2f5;
+}
+.tool-button.playing[data-v-c6379e23] {
+  color: #e5483f;
+}
+.tool-copy-icon[data-v-c6379e23],
+.tool-pronounce-icon[data-v-c6379e23] {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+.tool-button.playing .tool-pronounce-icon path[data-v-c6379e23]:nth-child(2) {
+  animation: ydVoiceWaveOuter-c6379e23 1.5s infinite;
+}
+.tool-button.playing .tool-pronounce-icon path[data-v-c6379e23]:nth-child(3) {
+  animation: ydVoiceWaveInner-c6379e23 1.5s infinite;
+}
+.empty-result[data-v-c6379e23] {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  border: 1px dashed #d9dde3;
+  border-radius: 6px;
+}
+.toast[data-v-c6379e23] {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  max-width: calc(100% - 48px);
+  height: 48px;
+  box-sizing: border-box;
+  padding: 0 20px;
+  transform: translateX(-50%);
+  border-radius: 12px;
+  background: rgba(42, 43, 46, 0.92);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+@keyframes spin-c6379e23 {
+to {
+    transform: rotate(360deg);
+}
+}
+@keyframes ydVoiceWaveInner-c6379e23 {
+0%, 19.99%, 80%, 100% {
+    opacity: 0;
+}
+20%, 79.99% {
+    opacity: 1;
+}
+}
+@keyframes ydVoiceWaveOuter-c6379e23 {
+0%, 39.99%, 60%, 100% {
+    opacity: 0;
+}
+40%, 59.99% {
+    opacity: 1;
+}
+}</style><!----></template></yd-image-ocr><yd-mg-huaci id="yd-mg-huaci-host" class="notranslate" translate="no" style="position: fixed; z-index: 2147483647;"><template shadowrootmode="open"><style>
+.hc-root {
+    direction: ltr;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.hc-root .yd-exclamation,
+.hc-root .yd-translate-container,
+.hc-root .yd-wrapper-inline,
+.hc-root .yd-wrapper-block {
+    display: none !important;
+}
+.hc-icon-btn {
+    position: fixed;
+    z-index: 2147483647;
+    width: 28px;
+    height: 28px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.12s ease;
+}
+.hc-icon-btn:hover {
+    transform: scale(1.1);
+}
+.hc-icon-img {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    pointer-events: none;
+}
+.hc-card {
+    position: fixed;
+    z-index: 2147483647;
+    box-sizing: border-box;
+    width: 420px;
+    max-width: calc(100vw - 16px);
+    max-height: min(620px, calc(100vh - 16px));
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    resize: none;
+    color: #1f2329;
+    font-size: 14px;
+    line-height: 1.6;
+}
+.hc-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-sizing: border-box;
+    height: 48px;
+    padding: 0 20px;
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    border-bottom: 0;
+    cursor: move;
+    user-select: none;
+}
+.hc-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 16px;
+    color: #1f2329;
+}
+.hc-title-logo {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+}
+.hc-card-actions {
+    display: flex;
+    align-items: center;
+}
+.hc-icon-action {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #939599;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.hc-icon-action:hover,
+.hc-settings-wrap:hover .hc-icon-action {
+    background: #f0f2f5;
+    color: #939599;
+}
+.hc-close {
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 200;
+}
+.hc-settings-wrap {
+    position: relative;
+    display: inline-flex;
+}
+.hc-settings-menu {
+    position: absolute;
+    top: 30px;
+    right: -56px;
+    width: 126px;
+    padding: 8px 0;
+    background: #fff;
+    border: 1px solid #eef0f4;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(31, 35, 41, 0.16);
+    display: block;
+    z-index: 2147483647;
+}
+.hc-settings-menu button {
+    width: 100%;
+    height: 34px;
+    padding: 0 16px;
+    border: 0;
+    background: transparent;
+    color: #2f3338;
+    text-align: left;
+    font-size: 14px;
+    cursor: pointer;
+}
+.hc-settings-menu button:hover {
+    background: #f5f6f7;
+}
+.hc-card-body {
+    flex: 1;
+    min-height: 0;
+    overflow: visible;
+    box-sizing: border-box;
+    padding: 8px 20px 20px;
+    border-radius: 0 0 20px 20px;
+    display: flex;
+    flex-direction: column;
+}
+.hc-control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 10px;
+}
+.hc-lang-select {
+    min-width: 116px;
+    max-width: 148px;
+    height: 32px;
+    padding: 0 10px 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: #f2f4f7;
+    color: #6d737c;
+    font-size: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.hc-lang-select span:first-child {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.hc-lang-wrap {
+    position: relative;
+    display: inline-flex;
+}
+.hc-lang-arrow {
+    width: 12px;
+    height: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.hc-language-menu {
+    position: absolute;
+    top: 36px;
+    left: -56px;
+    width: 360px;
+    max-width: calc(100vw - 32px);
+    max-height: 140px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    background: #fff;
+    border: 1px solid #eef0f4;
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(31, 35, 41, 0.16);
+    z-index: 2147483647;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px 6px;
+}
+.hc-language-menu button {
+    height: 26px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #1f2329;
+    cursor: pointer;
+    text-align: center;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.hc-language-menu button:hover {
+    background: #f2f4f7;
+}
+.hc-language-menu button.active {
+    color: rgb(255, 54, 80);
+    background: rgb(243, 244, 246);
+}
+.hc-toolbar {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+    box-sizing: border-box;
+    gap: 0;
+    padding: 3px;
+    margin-bottom: 0;
+    background: #f5f6f8;
+    border: 0;
+    border-radius: 8px;
+    overflow: visible;
+}
+.hc-tab {
+    flex: 1;
+    min-width: 44px;
+    height: 28px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #3480ff;
+    font-size: 12px;
+    font-weight: 400;
+    cursor: pointer;
+}
+.hc-tab.active {
+    background: #fff;
+    color: #2a2b2e;
+    box-shadow: 0 1px 8px rgba(34, 45, 66, 0.12);
+}
+.hc-lock {
+    position: absolute;
+    right: -5px;
+    top: -8px;
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+.hc-result {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-color: rgba(42, 43, 46, 0.21) transparent;
+}
+.hc-result::-webkit-scrollbar {
+    width: 6px;
+}
+.hc-result::-webkit-scrollbar-track {
+    background: transparent;
+}
+.hc-result::-webkit-scrollbar-thumb {
+    background: rgba(42, 43, 46, 0.21);
+    border-radius: 999px;
+}
+.hc-loading-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #8a9099;
+    font-size: 13px;
+}
+.hc-dict {
+    color: #1f2329;
+    padding-top: 4px;
+}
+.hc-word {
+    width: 380px;
+    max-width: 100%;
+    height: 36px;
+    margin-bottom: 8px;
+    color: rgba(42, 43, 46, 1);
+    font-family: Gilroy, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 24px;
+    line-height: 36px;
+    font-weight: 600;
+    letter-spacing: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.hc-phone-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2.29px 22px;
+    margin-bottom: 8px;
+    color: #8a9099;
+    font-size: 16px;
+    line-height: 24px;
+}
+.hc-phone-item {
+    min-width: 71.87px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 2px;
+    flex: none;
+    color: #8a9099;
+    overflow: visible;
+    white-space: nowrap;
+}
+.hc-phone-label {
+    color: #9aa0a8;
+}
+.hc-phone-play {
+    width: 20px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #939599;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.hc-phone-icon {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+}
+.hc-phone-play:hover,
+.hc-phone-play.playing {
+    color: #e5483f;
+}
+.hc-phone-play.playing svg path:nth-child(2),
+.hc-footer-action.playing > svg path:nth-child(2) {
+    animation: yd-voice-wave-outer 1.5s infinite;
+}
+.hc-phone-play.playing svg path:nth-child(3),
+.hc-footer-action.playing > svg path:nth-child(3) {
+    animation: yd-voice-wave-inner 1.5s infinite;
+}
+.hc-trs {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.hc-tr {
+    width: 356.61px;
+    max-width: 100%;
+    min-height: 24px;
+    color: #343941;
+    font-size: 16px;
+    line-height: 24px;
+    word-break: break-word;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 2px;
+}
+.hc-tr-text {
+    min-width: 0;
+    flex: 0 1 auto;
+}
+.hc-tr-play {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.hc-tr-play img {
+    width: 18px;
+    height: 18px;
+    opacity: 0.58;
+}
+.hc-tr-play:hover img,
+.hc-tr-play.playing img {
+    opacity: 1;
+}
+.hc-tr-play.playing img {
+    animation: hc-voice-pulse 1.2s ease-in-out infinite;
+}
+.hc-pos {
+    flex: 0 0 auto;
+    min-width: 38px;
+    margin-right: 0;
+    color: #8a9099;
+}
+.hc-result-text {
+    color: #1f2329;
+    word-break: break-word;
+    white-space: pre-wrap;
+    font-size: 16px;
+    line-height: 1.7;
+}
+.hc-error {
+    color: #d81e06;
+    font-size: 13px;
+    line-height: 22px;
+}
+.hc-retry {
+    color: #d81e06;
+    text-decoration: underline;
+    cursor: pointer;
+}
+.hc-loader {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #d81e06;
+    border-radius: 50%;
+    height: 18px;
+    width: 18px;
+    animation: hc-spin 0.6s linear infinite;
+}
+.hc-footer-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-top: 12px;
+}
+.hc-footer-action {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #939599;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.hc-copy-action {
+    margin-left: -2px;
+}
+.hc-footer-action:hover {
+    background: #f0f2f5;
+}
+.hc-footer-action.playing {
+    color: #e5483f;
+}
+.hc-footer-action[title="&#22797;&#21046;"] {
+    order: -1;
+}
+.hc-toast {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    max-width: calc(100% - 48px);
+    height: 48px;
+    box-sizing: border-box;
+    padding: 0 20px;
+    transform: translateX(-50%);
+    border-radius: 12px;
+    background: rgba(42, 43, 46, 0.92);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 18px;
+    text-align: center;
+    white-space: nowrap;
+    pointer-events: none;
+}
+@keyframes hc-spin {
+0% { transform: rotate(0deg);
+}
+100% { transform: rotate(360deg);
+}
+}
+@keyframes yd-voice-wave-inner {
+0%, 19.99%, 80%, 100% { opacity: 0;
+}
+20%, 79.99% { opacity: 1;
+}
+}
+@keyframes yd-voice-wave-outer {
+0%, 39.99%, 60%, 100% { opacity: 0;
+}
+40%, 59.99% { opacity: 1;
+}
+}
+</style><div class="hc-root notranslate notranslate" translate="no" id="yd-mg-huaci-host" style="position: fixed; z-index: 2147483647;"><!----><!----></div></template></yd-mg-huaci><yd-floating-ball id="yd-floating-ball-host" class="notranslate" translate="no" style="border: 0px !important; display: block !important; height: 0px !important; inset: auto !important; margin: 0px !important; opacity: 1 !important; overflow: visible !important; padding: 0px !important; pointer-events: auto !important; position: fixed !important; transform: none !important; visibility: visible !important; width: 0px !important; z-index: 2147483647 !important;"><template shadowrootmode="open"><style>
+:host {
+  all: initial;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+button {
+  font: inherit;
+}
+.floating-ball {
+  position: fixed;
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  top: calc(var(--position) * 100vh);
+  width: 38px;
+  color: #2a2b2e;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+  text-align: start;
+  transition: transform 200ms ease, opacity 200ms ease;
+}
+.floating-ball[data-side="right"] {
+  right: 0;
+  left: auto;
+}
+.floating-ball[data-side="left"] {
+  right: auto;
+  left: 0;
+}
+.floating-ball[data-expanded="false"][data-side="right"] {
+  transform: translateX(19px);
+  opacity: .66;
+}
+.floating-ball[data-expanded="false"][data-side="left"] {
+  transform: translateX(-19px);
+  opacity: .66;
+}
+.floating-ball[data-expanded="true"],
+.floating-ball[data-dragging="true"] {
+  transform: translateX(0);
+  opacity: 1;
+}
+.floating-ball[data-dragging="true"] {
+  transition: none;
+}
+.main-cluster {
+  position: relative;
+  width: 38px;
+  height: 32.24px;
+}
+.main-button,
+.action-button,
+.satellite-button {
+  appearance: none;
+  cursor: pointer;
+  margin: 0;
+}
+.main-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 32.24px;
+  padding: 2.3px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 3.95px 11.84px rgba(63, 70, 86, .23);
+  touch-action: none;
+}
+.floating-ball[data-side="right"] .main-button {
+  border-radius: 999px 0 0 999px;
+}
+.floating-ball[data-side="left"] .main-button {
+  border-radius: 0 999px 999px 0;
+}
+.main-button:hover,
+.main-button:focus-visible {
+  outline: 2px solid rgba(255, 54, 80, .28);
+  outline-offset: 2px;
+}
+.main-button:disabled {
+  cursor: progress;
+}
+.brand-image {
+  display: block;
+  width: 27.64px;
+  height: 27.64px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+.translated-check {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #20b26b;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+.action-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32.24px;
+  height: 32.24px;
+  margin-inline: 2.88px;
+  padding: 4.61px;
+  border: 2.3px solid #fff;
+  border-radius: 999px;
+  background: #fff;
+  color: #939599;
+  box-shadow: 0 4.61px 13.82px rgba(63, 70, 86, .23);
+}
+.action-button:hover,
+.action-button:focus-visible {
+  background: #f3f4f5;
+  outline: none;
+}
+.settings-button,
+.feedback-button {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(.82);
+  transition: opacity 200ms ease, transform 200ms ease, visibility 200ms;
+}
+.floating-ball[data-controls-visible="true"] .settings-button,
+.floating-ball[data-controls-visible="true"] .feedback-button,
+.floating-ball[data-controls-visible="true"] .satellite-button {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+.action-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  user-select: none;
+}
+.satellite-button {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 3px;
+  border: 1px solid #e4e7f3;
+  border-radius: 999px;
+  background: #fff;
+  color: #939599;
+  box-shadow: 0 4px 10px rgba(18, 24, 40, .14);
+}
+.satellite-button:hover,
+.satellite-button:focus-visible {
+  color: #ff3650;
+  outline: 2px solid rgba(255, 54, 80, .28);
+  outline-offset: 1px;
+}
+.satellite-button svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+.floating-ball[data-side="right"] .close-button,
+.floating-ball[data-side="right"] .lock-button {
+  left: -14px;
+}
+.floating-ball[data-side="left"] .close-button,
+.floating-ball[data-side="left"] .lock-button {
+  right: -14px;
+}
+.close-button {
+  top: -9px;
+}
+.lock-button {
+  bottom: -9px;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(.82);
+}
+.floating-ball[data-controls-visible="true"] .lock-button {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+.floating-ball[data-locked="true"] .lock-button {
+  border-color: rgba(255, 54, 80, .34);
+  background: #fff1f3;
+  color: #ff3650;
+}
+.tooltip {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 9px);
+  z-index: 5;
+  width: max-content;
+  max-width: 180px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #17181a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) translateX(3px);
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+.floating-ball[data-side="left"] .tooltip {
+  right: auto;
+  left: calc(100% + 9px);
+  transform: translateY(-50%) translateX(-3px);
+}
+button:hover > .tooltip,
+button:focus-visible > .tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+.error-message {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  max-width: 210px;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #17181a;
+  color: #fff;
+  font-size: 12px;
+  line-height: 18px;
+}
+.floating-ball[data-side="left"] .error-message {
+  right: auto;
+  left: 0;
+}
+.embedded-panel {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  width: min(344px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid rgba(224, 228, 236, .96);
+  border-radius: 16px;
+  background: #f3f5f8;
+  box-shadow: 0 20px 60px rgba(18, 24, 40, .28);
+  color: #2a2b2e;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+}
+.embedded-panel[data-kind="feedback"] {
+  width: min(960px, calc(100vw - 32px));
+}
+.embedded-panel[data-kind="popup"] {
+  bottom: auto;
+  max-height: calc(100vh - 32px);
+}
+.embedded-panel[data-kind="options"] {
+  width: min(880px, calc(100vw - 32px));
+}
+.embedded-panel-header {
+  display: flex;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px 0 16px;
+  border-bottom: 1px solid #e4e7f3;
+  background: rgba(255, 255, 255, .96);
+  font-size: 14px;
+  line-height: 20px;
+}
+.embedded-panel-header strong {
+  font-weight: 600;
+}
+.embedded-panel-header button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #6f737a;
+  cursor: pointer;
+}
+.embedded-panel-header button:hover,
+.embedded-panel-header button:focus-visible {
+  background: #f0f2f5;
+  color: #ff3650;
+  outline: 2px solid rgba(255, 54, 80, .22);
+}
+.embedded-panel-header svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.6;
+}
+.embedded-panel-frame {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: #fff;
+}
+@media (max-width: 480px) {
+.embedded-panel,
+  .embedded-panel[data-kind="feedback"] {
+    top: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: calc(100vw - 16px);
+}
+}
+@media print {
+:host {
+    display: none !important;
+}
+}
+@media (prefers-reduced-motion: reduce) {
+.floating-ball,
+  .settings-button,
+  .feedback-button,
+  .satellite-button,
+  .tooltip {
+    transition: none;
+}
+}
+</style><div class="floating-ball notranslate" data-testid="floating-ball" translate="no" data-side="right" data-expanded="false" data-controls-visible="false" data-locked="false" data-busy="false" data-dragging="false" style="--position: 0.56; display: none;"><div class="main-cluster"><button class="main-button" data-testid="floating-main-button" type="button" aria-label="&#32763;&#35793;&#32593;&#39029;" aria-busy="false"><img class="brand-image" src="chrome-extension://memhacajcfhmibggbgilihlmiiddeggo/icon.png" alt="&#26377;&#36947;&#28789;&#21160;&#32763;&#35793;"><!----><span class="tooltip" role="tooltip">&#32763;&#35793;&#32593;&#39029;</span></button><button class="satellite-button close-button" data-testid="close-action" type="button" aria-label="&#20851;&#38381;&#24748;&#28014;&#29699;"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6.2 6.2 7.6 7.6m0-7.6-7.6 7.6"></path></svg></button><button class="satellite-button lock-button" data-testid="lock-action" type="button" aria-label="&#38145;&#23450;&#24748;&#28014;&#29699;" aria-pressed="false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6.4 9.1V6.8a3.6 3.6 0 0 1 7.2 0v2.3M5.3 9.1h9.4v7.2H5.3z"></path></svg><span class="tooltip" role="tooltip">&#38145;&#23450;</span></button></div><button class="action-button settings-button" data-testid="settings-action" type="button" aria-label="&#25171;&#24320;&#25554;&#20214;&#38754;&#26495;"><img class="action-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAKKADAAQAAAABAAAAKAAAAAB65masAAACGklEQVRYCe1W3U3DMBC+czNARygTABuUDdiAvkAV0gCdIO0E/LghKkUi3YARugFsQEboO43NXUskFNmtIEnFg0+qat/v5++ScwCcOAYcA46BRhnAXdmTJOmswDvTSvXIubPxx3dav7dEPvZ9P9uVo4p9K8DJ4zMBy+8AoW0pstQI46vL/p3FXlktbBlk/HStdZ5+g3sFpU7CoI/84zVomFNsGzXc8kFsearqjQyu25qLtw04NQ4Df2QqJGUyAiEisi09oY6baLeRwVy1IgaHgKkNHAMOQwKO8ErL9kqJHuvqFiNAKnLEhbTIuY3bJVf37ECtaKTNxhbLeKq56Pp548UOKfzJbbzD1WrWgNlVcJGWHbyyouKen8c/CdJbR5KWg40AidaM3DsySbqh7y/KQT/3Us66AIrTZxQ3/2n7zZoZNPkbAWpFhQRE9BBeU9DCFFjoUOgzPrsAXAyCi1Ghr+vf+JKsPJVSgSXRciqTWWQrJuNZpEH3tIblJ90qNr8qeuqKWR7ipIcgXtjK40YLnIf++YL3BLpLw5rZPeU9DevhYNDMbWIFyIUfJtMbRGo1zTnel4WZa6EaBoGflm117bcC5CK39LHg5WKEiIfUzvV8pKCMPh7mKw/SYcMfC3Ud1OVxDDgGHAMWBrbOwUk8/aB7tmOJrVXNs3UQ9A/KSY13ceGkisUe/vdZaw/HcSUcA44Bx4Bj4N8w8AUaL6tqruTqDgAAAABJRU5ErkJggg==" alt="" aria-hidden="true"><span class="tooltip" role="tooltip">&#25171;&#24320;&#25554;&#20214;</span></button><button class="action-button feedback-button" data-testid="feedback-action" type="button" aria-label="&#25552;&#20132;&#21453;&#39304;"><img class="action-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAKKADAAQAAAABAAAAKAAAAAB65masAAACHElEQVRYCe2WUW7aQBCGZ5xErdpKzRE4AkeAG5ATNLw0Io6r+gThBpAgBwUeSE/Q9AThBs0ROAJSFR4KO9MZqzRkZeJ12bZStfNiz4x3/enf3dkBCBYUCAoEBYICQQFbgWw0qg+Hw5odL/L3i4J2bDAcn4Ohj4BwaOe2+YyQfjg96dv5QTY+pyV1DeAXybXsvO2XAuqEQNQVuGrGOLcH5HOBzCWGwPd2vsgvBUSgY9aRRM0k6UyLJnGJbcJFQO047ty4jCsFFLiaTrQL3OXVdQ9YtohYFTj9vhRQP9rFLrPRBJmPmWGOTEdxxVX4Y4CTyeTw22LZk72WwxlcNdOz2GnfbQoSbTq+3hXuYbG8y+EAZjlc/Ag3uLpuuZYZ74BrOAauy/6dmYia6SbcYNwAhs9Lwr6LIF6XWFV5WHy/04P1C67TmRWBRBi9LYrbMW8KKpyhyAnOhnjO9wa4WkW6pDUpwff5sm5R7jmYopw3wCQ5udVivnp10Ew9wSmw1z24SzEvUk9j3hTc9oNd4wHwv1fwtw+JNLENObWNqgpJ+/ZOyhEQwyeXsZUBczBmbWIrwymQwiHiNDl9f6N+mTkDZllWJzzorcHy9glRVOB52U+e5ImmZxVaLmdAgv2vIFQ5GNOFefOyn7bb1eCekLo5pYB66ePPrlrUujCvX3T/BtgavxRQ79U9E7XMHt36vMLWAOEZFAgKBAX+sQI/AKCs44IfkxH4AAAAAElFTkSuQmCC" alt="" aria-hidden="true"><span class="tooltip" role="tooltip">&#21453;&#39304;</span></button><!----></div><!----></template></yd-floating-ball></body></html>
