@@ -262,4 +262,190 @@ void main(int argc, char* argv[])
 - 1.获取目录文件的路径path
 - 2.读取目录文件内的dirent条目。每读取一个，将dirent.name与path进行拼接，获得目录下文件的路径
 - 3.获取到文件的路径，然后就可以获取其状态，打开等等
-- 4.若目录文件的dirent没有读完,回到2继续执行
+- 4.若目录文件的dirent没有读完,回到继续执行
+
+### 4.3-程序的构造
+
+所以很显然地我们能够开始想怎么去写代码了
+我们定义一个find，接口为
+
+```c
+//查找path下所有与name匹配的文件并输出
+void find(char *path,char *name);
+```
+
+而find内部，参考ls的实现，则可以这样去递归实现
+
+```c
+void find(char *path,char *name){
+    char buf[512];
+    int fd = open(path,0);
+    struct stat st = fstat(fd,&st);
+    switch(st.type){
+    case T_FILE:
+        if(strcmp(basename(path),name)){
+            printf(%s\n);
+        }
+        break;
+    case T_DIR:
+        //拼接路径名到buf的代码(省略)
+        //然后读取DIR文件，遍历里面的每个文件，执行find
+
+    }
+    break;
+}
+```
+
+### 4.4-源码
+
+```c
+#include "kernel/types.h"
+#include "kernel/fs.h"
+#include "kernel/stat.h"
+#include "user/user.h"
+
+char* basename(char* path)
+{
+    char* p;
+
+    // Find first character after last slash.
+    for (p = path + strlen(path); p >= path && *p != '/'; p--);
+    p++;
+
+    // Return blank-padded name.
+    return p;
+}
+
+void find(char* path, char* name)
+{
+  char buf[512], *p;
+  int fd;
+  struct stat st;
+  struct dirent de;
+
+  if ((fd = open(path, 0)) < 0) {
+    fprintf(2, "find: cannot open %s\n", path);
+    return;
+  }
+
+  if (fstat(fd, &st) < 0) {
+    fprintf(2, "find: cannot stat %s\n", path);
+    close(fd);
+    return;
+  }
+
+  switch(st.type){
+  case T_FILE:
+    if(!strcmp(basename(path),name)){
+      printf("%s\n",path);
+    }
+    break;
+  case T_DIR:
+    if (strlen(path) + 1 + DIRSIZ + 1 > sizeof buf) {
+      fprintf(2, "find: path is too long\n");
+      close(fd);
+      return;
+    }
+    strcpy(buf, path);  // 将路径名移动至buf内,buf将记录目录下文件的路径
+    p = buf + strlen(buf);
+    *p++ = '/'; //p指向路径最后的文件名
+    while (read(fd, &de, sizeof(de)) == sizeof(de)) {
+      if (de.inum == 0) {
+        continue;  // 为什么inum为0要continue
+      }
+      if(!strcmp(de.name,".") || !strcmp(de.name,"..")){
+        continue;
+      }
+      memmove(p, de.name, DIRSIZ);//拼接文件路径
+      p[DIRSIZ] = 0;
+      find(buf,name);
+    }
+    break;
+  }
+  close(fd);
+}
+
+int main(int argc, char* argv[])
+{
+  if(argc != 3){
+    fprintf(2,"usage: find <path> <name>\n");
+    exit(1);
+  }
+  find(argv[1],argv[2]);
+  exit(0);
+}
+```
+
+## 5-xargs
+
+这个比较简单，就是从标准输入内实现读取一行的功能，然后每读取一行，进行参数拼接，fork，exec相应的程序即可。
+源码如下
+
+```c
+#include "kernel/param.h"
+#include "kernel/types.h"
+#include "user/user.h"
+
+char** addArgv(int argc, char* argv[], char* arg)
+{
+    int i =0;
+    static char* na[MAXARG] = {0};
+    for (i = 0; i < MAXARG; i++) {
+        na[i] = 0;
+    }
+    for (i = 0; i < argc; i++) {
+        na[i] = argv[i];
+    }
+    na[argc] = arg;
+    return na;
+}
+
+void execArgs(char* path, char* argv[])
+{
+    #ifdef DEBUG
+    fprintf(2,"DEBUG: path=%s argv[0]=%s argv[1] = %s argv[2]=%s\n",
+             path,argv[0],argv[1],argv[2]);
+    #endif
+
+    if (fork() == 0) {
+        if (exec(path, argv) == -1) {
+            fprintf(1, "xargs: exec %s failed\n", path);
+            exit(1);
+        }
+    }
+    else {
+        wait(0);
+    }
+}
+
+int readline(char* buf, int max)
+{
+    int i = 0, n = -1;
+
+    for (i = 0; (i + 1) < max; i++) {
+        n = read(0, buf + i, 1);
+        if (n <= 0 || buf[i] == '\n') {
+            break;
+        }
+    }
+    buf[i] = '\0';
+    if (i > 0) {
+        return i;
+    }
+    // fprintf(2,"xargs: raed error with %d\n",n);
+    return -1;
+}
+
+int main(int argc, char* argv[])
+{
+    if(argc < 2){
+        fprintf(2,"xargs: too few arguments");
+        exit(0);
+    }
+    char buf[512];
+    while (readline(buf, sizeof(buf)) > 0) {
+        execArgs(argv[1], addArgv(argc - 1, &argv[1], buf));
+    }
+    exit(0);
+}
+```
