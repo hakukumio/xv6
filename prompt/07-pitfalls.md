@@ -1,6 +1,6 @@
 # 07 — 踩坑档案（TA 重点盯）
 
-> **版本：2026-09-02**
+> **版本：2026-09-06**
 
 ## 反复错误（最高优先级）
 
@@ -26,9 +26,17 @@
 
 - Gitee push「hook declined / hidden email」：commit 邮箱在 Gitee 账号里是隐藏的 → 网页公开，或改 commit email
 - 分支切换 = 工作目录整体换内容；只要 commit 过就不丢（内容在对象库）
+- **`prompt/` 只存在于 util 分支**：切到 syscall 等 lab 分支后 prompt/ 会从工作区消失（对象库仍在）→ 状态文件更新统一在切回 util 时做；`note/` 被 `.gitignore` 忽略，切分支不受影响
 - Ubuntu gdb 拒绝 auto-load `.gdbinit` → 用 `gdb -x .gdbinit` 或加 safe-path
 - 全量 `make grade` 才会暴露「自认为过了」的题（pingpong 空格是教训）
 
 ## 会话期间新增（TA 追加）
 
-- （每次会话结束，把新坑追加到这里）
+- 2026-09-04（§2.6 验收）：
+  - **概念澄清**：`userinit()` 只是「造好进程并置 RUNNABLE」，真正把 CPU 交给 initcode 去跑的是 `scheduler()`——「造车 vs 点火」要分清，别把 userinit 说成"运行进程"。
+  - **书 vs 仓库宏名**：书 §2.6 正文写 `SYS_EXEC`（全大写），仓库真名 `SYS_exec`（`syscall.h:8`）→ 读代码一律以仓库为准。
+- 2026-09-03（LEC3 预习）：
+  - **书版本坑**：本地 `book-riscv-rev2.pdf` 节号 ≠ 记忆中的编号——§2.5 = *Process overview*，§2.6 = *Code: starting xv6, the first process and system call*；且书内引用的代码行号滞后于本地仓库（书 `riscv.h:363`/`proc.c:226`，本地 `riscv.h:351`/`proc.c:212`）→ **行号一律以本地 `grep` 为准**。
+  - **知识预埋（x86→RISC-V 三反直觉点，待内化）**：`lw` 是**有符号扩展**（零扩展用 `lwu`，与 x86 `movl` 自动清零高 32 位相反）；无 flags（`blt rs1,rs2` 直接判 rs1<rs2，别套 x86 cmp 反读习惯）；返回地址在 `ra` 不入栈（prologue 需手动 `sd ra,…(sp)`）。速查卡：`note/Lec/Lec3/riscv-迁移速查-从x86CSAPP.md`。
+
+- （下次会话结束时，把新坑追加到这里）

@@ -19,15 +19,16 @@
 读完后，先用你自己的话复述一遍：我的当前进度、我的薄弱点、今天的下一步。
 确认无误后再开始教学。
 
-## 状态快照（版本：2026-09-02）
+## 状态快照（版本：2026-09-06）
 
 > ⚠️ 本快照可能滞后。**状态一律以 `04-progress.md` 为准。**
 
-- Lab util：sleep/pingpong/primes/find/xargs 全部通过（含 pingpong 空格 bug 修复）
+- Lab util：sleep/pingpong/primes/find/xargs 全部通过；util 分支 HEAD 已含状态推进（封板 `make grade` 未跑，time.txt 已建）
 - 进度位置：约等于课程第 2 周末（sep 15/16 节点）
-- 正在收尾：LEC 2「C and gdb」——gdb 动手练习已布置，观察报告未交
-- 下一步：Lab util 封板确认 → 切 `syscall` 分支 → 预习 book 第 2 章 + LEC 3 源码 → 开 Lab syscall（trace + sysinfo）
-- 环境注意：Gitee 推送被「隐藏邮箱」hook 拦截（修复中）；qemu-gdb 需 `gdb -x .gdbinit`
+- LEC3 完成：book ch2 预习 + 视频收尾；资料在 `note/Lec/Lec3/`（§2.5/§2.6 中文翻译 + RISC-V 迁移速查 + preparation.md）
+- 正在做：**Lab syscall（trace → sysinfo）**——已切 `syscall` 分支、`make clean` 完成，待开工 trace
+- 下一步：trace（4 处改动：`syscall.h`/`user.h`/`usys.pl`/`proc.h`+`sysproc.c`）→ sysinfo → `make grade`
+- 环境注意：`prompt/` 只在 util 分支（切走会从工作区消失，对象库仍在）；qemu-gdb 需 `gdb -x .gdbinit`
 - 语言：中文回答，英文技术术语保留
 
 ## 复制到这里结束
