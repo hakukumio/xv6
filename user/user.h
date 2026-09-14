@@ -3,6 +3,7 @@ struct rtcdate;
 struct sysinfo;
 
 // system calls
+//操作系统接口，将会进入内核调用真正实现的函数
 int fork(void);
 int exit(int) __attribute__((noreturn));
 int wait(int*);
@@ -29,6 +30,7 @@ int connect(uint32, uint16, uint16);
 #endif
 
 // ulib.c
+//功能基本在用户侧实现的接口
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
 void *memmove(void*, const void*, int);
@@ -45,3 +47,4 @@ int atoi(const char*);
 int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
 int statistics(void*, int);
+int ugetpid(void);

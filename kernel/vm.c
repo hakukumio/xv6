@@ -22,7 +22,7 @@ void
 kvminit()
 {
   kernel_pagetable = (pagetable_t) kalloc();
-  memset(kernel_pagetable, 0, PGSIZE);
+  memset(kernel_pagetable, 0, PGSIZE);//注释:因为satp此时为0，所以CPU执行指令时将直接VA=PA。不使用页表
 
   // uart registers
   kvmmap(UART0, UART0, PGSIZE, PTE_R | PTE_W);
