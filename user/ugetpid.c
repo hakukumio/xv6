@@ -13,6 +13,7 @@ main(void) {
         exit(1);
     } else {
         wait(0);
+        printf("I Love Computer Science\n");
         printf("I'm parent,my child's pid = %d\n",pid);
         exit(0);
     }
