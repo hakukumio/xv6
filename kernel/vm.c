@@ -467,3 +467,54 @@ vmprint(pagetable_t pg){
     }
   }
 }
+
+//refers to freewalk
+//get a copy of page table
+//return a point when well
+//return 0 when bad
+pagetable_t
+pgcopy(pagetable_t pg){
+  pagetable_t kpg = (pagetable_t)kalloc();
+  if(kpg == 0){
+    return 0;
+  }
+  memset(kpg,0,PGSIZE); //kalloc的正确使用
+
+  for(int i=0;i < 512;i++){
+    if((pg[i] & PTE_V) && (pg[i] & (PTE_R | PTE_W | PTE_X))){ //leaf PTE
+      kpg[i] = pg[i];
+    } else if(pg[i] & PTE_V) {
+      kpg[i] = PA2PTE(pgcopy((pagetable_t)PTE2PA(pg[i])));
+      if(! kpg[i])
+        return 0;
+      kpg[i] = kpg[i] | PTE_FLAGS(pg[i]);
+    } else {
+      kpg[i] = 0;
+    }
+  }
+
+  return kpg;
+}
+
+//get a copy of kernel page table
+pagetable_t
+kpgcopy(void){
+  return pgcopy(kernel_pagetable);
+}
+
+
+//refers to freewalk
+//free pagetable tree only
+//Using DFS
+void
+freepgonly(pagetable_t pg){
+  for(int i =0; i < 512;i ++){
+    pte_t pte = pg[i];
+    if((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0){
+      freepgonly((pagetable_t)(PTE2PA(pte)));
+    } else if((pte & PTE_V)){
+      pte = 0;
+    }
+  }
+  kfree((void*)pg);
+}

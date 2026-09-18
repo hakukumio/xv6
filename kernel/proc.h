@@ -98,6 +98,7 @@ struct proc {
   uint64 kstack;               // Virtual address of kernel stack
   uint64 sz;                   // Size of process memory (bytes)
   pagetable_t pagetable;       // User page table
+  pagetable_t kernelpagetable; // Kernel page table copy
   struct trapframe *trapframe; // data page for trampoline.S
   struct usyscall *usyscall;   // Buffer of User System Call
   struct context context;      // swtch() here to run process

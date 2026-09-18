@@ -130,6 +130,13 @@ found:
     return 0;
   }
 
+  p->kernelpagetable = kpgcopy();
+  if(p->kernelpagetable == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
@@ -153,6 +160,9 @@ freeproc(struct proc *p)
   p->usyscall = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+  if(p->kernelpagetable)
+    freepgonly(p->kernelpagetable);
+  p->kernelpagetable = 0;
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -493,6 +503,8 @@ scheduler(void)
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
+        w_satp(MAKE_SATP(p->kernelpagetable));
+        sfence_vma();
         p->state = RUNNING;
         c->proc = p;
         swtch(&c->context, &p->context);
@@ -500,6 +512,8 @@ scheduler(void)
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
+
+        kvminithart();
 
         found = 1;
       }
