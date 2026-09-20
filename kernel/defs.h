@@ -182,6 +182,13 @@ void            vmprint(pagetable_t);
 pagetable_t     pgcopy(pagetable_t);
 pagetable_t     kpgcopy(void);
 void            freepgonly(pagetable_t);
+int             kpgaddupg(pagetable_t,pagetable_t,uint64,uint64);
+int             kpgcleanupg(pagetable_t,uint64,uint64);
+
+//vmcopyin
+int             copyin_new(pagetable_t,char*,uint64,uint64);
+int             copyinstr_new(pagetable_t, char*, uint64, uint64);
+
 
 // plic.c
 void            plicinit(void);

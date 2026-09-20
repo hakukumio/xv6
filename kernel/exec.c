@@ -116,6 +116,9 @@ exec(char *path, char **argv)
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
   
+  kpgcleanupg(p->kernelpagetable, p->sz,0);
+  kpgaddupg(p->kernelpagetable, p->pagetable, p->sz,0);
+
   if(p->pid == 1)
     vmprint(pagetable);
   return argc; // this ends up in a0, the first argument to main(argc, argv)

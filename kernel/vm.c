@@ -379,23 +379,7 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 int
 copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 {
-  uint64 n, va0, pa0;
-
-  while(len > 0){
-    va0 = PGROUNDDOWN(srcva);
-    pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
-    n = PGSIZE - (srcva - va0);
-    if(n > len)
-      n = len;
-    memmove(dst, (void *)(pa0 + (srcva - va0)), n);
-
-    len -= n;
-    dst += n;
-    srcva = va0 + PGSIZE;
-  }
-  return 0;
+  return copyin_new(pagetable,dst,srcva,len);
 }
 
 // Copy a null-terminated string from user to kernel.
@@ -405,40 +389,7 @@ copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 int
 copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 {
-  uint64 n, va0, pa0;
-  int got_null = 0;
-
-  while(got_null == 0 && max > 0){
-    va0 = PGROUNDDOWN(srcva);
-    pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
-    n = PGSIZE - (srcva - va0);
-    if(n > max)
-      n = max;
-
-    char *p = (char *) (pa0 + (srcva - va0));
-    while(n > 0){
-      if(*p == '\0'){
-        *dst = '\0';
-        got_null = 1;
-        break;
-      } else {
-        *dst = *p;
-      }
-      --n;
-      --max;
-      p++;
-      dst++;
-    }
-
-    srcva = va0 + PGSIZE;
-  }
-  if(got_null){
-    return 0;
-  } else {
-    return -1;
-  }
+  return copyinstr_new(pagetable, dst, srcva, max);
 }
 
 void
@@ -499,7 +450,14 @@ pgcopy(pagetable_t pg){
 //get a copy of kernel page table
 pagetable_t
 kpgcopy(void){
-  return pgcopy(kernel_pagetable);
+  pagetable_t kpg = pgcopy(kernel_pagetable);
+  pte_t *pte;
+
+  for(uint64 va = CLINT; va < CLINT + 0x1000;va += PGSIZE){
+    pte = walk(kpg, va, 0);
+      *pte = 0;
+  }
+  return kpg;
 }
 
 
@@ -517,4 +475,53 @@ freepgonly(pagetable_t pg){
     }
   }
   kfree((void*)pg);
+}
+
+//clean 0 - sz of pagetabel
+//no free physical memory
+int
+kpgcleanupg(pagetable_t kernelpg,uint64 sz,uint64 va){
+  pte_t* pte;
+  uint64 bottom,upbound;
+  if(sz > PLIC || (va + sz) > PLIC || (va > va+sz))
+    return -1;
+  bottom = PGROUNDDOWN(va);
+  upbound = PGROUNDUP(va+sz);
+  //clean 0-CLINT address in kernel page table
+  for(int addr = bottom; addr < upbound; addr += PGSIZE){
+    pte = walk(kernelpg, addr, 0);
+    if(pte == 0 || *pte == 0){ //the page kernel mapping not exists
+      continue;
+    } else {                   //the page kernel mapping exists
+      uvmunmap(kernelpg, addr, 1, 0);
+    }
+  }
+  return 1;
+}
+
+//copy user pagetable into kernel pagtable
+//address of va - va+sz(sz must smaller than PLIC)
+//va - va+sz of kernel pagetable must be clean
+int
+kpgaddupg(pagetable_t kernelpg,pagetable_t userpg,uint64 sz,uint64 va){
+  pte_t* pte;
+  uint64 bottom,upbound;
+
+  if(sz > PLIC || (va+sz) > PLIC || (va > va+sz))
+    return -1;
+  bottom = PGROUNDDOWN(va);
+  upbound = PGROUNDUP(va +sz);
+
+  //copy 0-sz user mapping into kernel
+  for(int addr=bottom;addr < upbound;addr+=PGSIZE){
+    pte = walk(userpg, addr, 0);
+    if(pte == 0 || *pte == 0){
+      continue;
+    }
+    int x = mappages(kernelpg, addr, PGSIZE, PTE2PA((*pte)), PTE_FLAGS((*pte)) & (~PTE_U));
+    if(x == -1)
+      return -1;
+  }
+
+  return 1;
 }

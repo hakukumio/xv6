@@ -253,6 +253,9 @@ userinit(void)
   uvminit(p->pagetable, initcode, sizeof(initcode));
   p->sz = PGSIZE;
 
+  kpgcleanupg(p->kernelpagetable, p->sz,0);
+  kpgaddupg(p->kernelpagetable, p->pagetable, p->sz,0);
+
   // prepare for the very first "return" from kernel to user.
   p->trapframe->epc = 0;      // user program counter
   p->trapframe->sp = PGSIZE;  // user stack pointer
@@ -270,10 +273,11 @@ userinit(void)
 int
 growproc(int n)
 {
-  uint sz;
+  uint oldsz,sz;
   struct proc *p = myproc();
 
-  sz = p->sz;
+  oldsz = p->sz;
+  sz = oldsz;
   if(n > 0){
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
@@ -282,6 +286,12 @@ growproc(int n)
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
   p->sz = sz;
+  if(oldsz > sz){ //收缩
+    kpgcleanupg(p->kernelpagetable,oldsz-sz,sz);
+  } else {        //扩大
+    kpgcleanupg(p->kernelpagetable, sz-oldsz, oldsz);
+    kpgaddupg(p->kernelpagetable, p->pagetable, sz-oldsz, oldsz);
+  }
   return 0;
 }
 
@@ -324,6 +334,16 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
+
+  if(kpgcleanupg(np->kernelpagetable, np->sz,0) == -1){
+    freeproc(np);
+    release(&np->lock);
+    return -1;
+  }
+  if(kpgaddupg(np->kernelpagetable, np->pagetable,np->sz,0) == -1){
+    freeproc(np);
+    release(&np->lock);
+  }
 
   np->state = RUNNABLE;
 
